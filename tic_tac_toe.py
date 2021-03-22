@@ -3,6 +3,7 @@ import os
 import pygame
 from pygame.locals import *
 from random import choice
+from typing import Tuple
 
 # Game constants
 WIN_SIZE = WIN_WIDTH, WIN_HEIGHT = 800, 600
@@ -12,11 +13,13 @@ RED = 255, 0, 0
 BLUE = 0, 0, 255
 GREY = 192, 192, 192
 
+# Passed into certain functions to switch between screens in the game
 START_SCREEN = "start screen"
 GAME_SCREEN = "game screen"
 ADDITIONAL_OPTIONS_SCREEN = "additional options screen"
 GAME_HISTORY_SCREEN = "game history screen"
 PAST_GAME_SCREEN = "past game screen"
+
 
 # Game functions
 class NoneSound:
@@ -45,15 +48,29 @@ def load_sound(file):
     return sound
 
 def load_font(name, size):
-    """Loads a system font by name"""
+    """Loads a system font by name
+    
+        Required parameters:
+        name -- name of the 
+        size -- size of the font
+    """
     if not pygame.font:
         return NoneFont()
     font = pygame.font.SysFont(name, size)
     return font
 
 
-def load_image(file, colorkey=None, size=None, alpha=None):
-    """loads image into game"""
+def load_image(file: str, colorkey:int = None, size:Tuple[int,int] = None, alpha:int = None):
+    """Loads image into game
+
+        Required parameters:
+        file -- name of the image file
+
+        Optional parameters:
+        colorkey -- when blitting the returned Surface, the color passed in will not be blit
+        size -- scales or shrinks image to the value passed in
+        alpha -- sets alpha transparency of the image
+        """
     image_to_load = os.path.join('images', file)
     try:
         image = pygame.image.load(image_to_load).convert()
@@ -75,6 +92,14 @@ def load_image(file, colorkey=None, size=None, alpha=None):
     return image
 
 def rotozoom(surface: pygame.Surface, angle, scale):
+    """Scales a surface then rotates it. Used for a diagonal win and the line image
+    needs to be rotated
+    
+        Required parameters:
+        surface -- surface to change
+        angle -- degrees in which to rotate the surface
+        scale -- how much to multiply the width and height of surface
+    """
     width, height = surface.get_rect().size
     new_surface = pygame.transform.scale(surface, (floor(width*scale), floor(height*scale)))
     new_surface = pygame.transform.rotate(new_surface, angle)    
@@ -82,7 +107,7 @@ def rotozoom(surface: pygame.Surface, angle, scale):
 
 
 class TTTVisual:
-    """handles the visual aspects of the game"""
+    """Handles the visual aspects of the game"""
     # TODO: MOVE ALL RECTS TO LAYOUTS CLASS
 
     def __init__(self, win: pygame.Surface, texts):
@@ -95,7 +120,7 @@ class TTTVisual:
         self.o_tile_og = load_image("O_tile.png", WHITE)
         self.x_line_og = load_image("X_line.png", WHITE)
         self.o_line_og = load_image("O_line.png", WHITE)
-        self.more_button_og = load_image("more_button.png", WHITE)
+        self.more_button = load_image("more_button.png", size=(floor(section.width*(4/10)), floor(section.height*(8/10))))
         self.dark_background = load_image("darkbackground.png", size=self.win_rect.size, alpha=150)
 
         self.layouts.create_grid_layout(self.grid)
@@ -139,13 +164,6 @@ class TTTVisual:
                         rotozoom(x_line, -47, 1.2), rotozoom(x_line, 47, 1.2))
         self.o_lines = (o_line, pygame.transform.rotate(o_line, 90),
                         rotozoom(o_line, -47, 1.2), rotozoom(o_line, 47, 1.2))
-
-    def create_more_button(self):
-        """Scales 'more' button to proper size and gets its Rect in the layout"""
-        section = pygame.Rect(floor(self.win_rect.width*(2/3)), floor(self.win_rect.height*(8/10)),
-                              floor(self.win_rect.width*(1/3)), floor(self.win_rect.height*(2/10)))
-        self.more_button = pygame.transform.scale(self.more_button_og, (floor(section.width*(4/10)), floor(section.height*(8/10))))
-        self.more_button_rect = self.more_button.get_rect(center=section.center)
 
     def create_additional_options(self) -> list:
         """Places layout of additional options in a list for blitting"""
@@ -270,7 +288,7 @@ class TTTVisual:
 
     def draw_more_button(self):
         """Adds the 'more' button to the game screen layout"""
-        self.win.blit(self.more_button, self.more_button_rect)
+        self.win.blit(self.more_button, self.layouts.more_button_rect)
 
     def draw_line(self, win_info, turn):
         """When there is a winner, draws line to cross over winning tiles. Doesn't do anything if it's a tie"""
@@ -395,6 +413,11 @@ class Layouts:
         section = pygame.Rect(floor(self.win_rect.width*(1/3)), floor(self.win_rect.height*(8/10)), floor(self.win_rect.width*(1/3)), floor(self.win_rect.height*(2/10)))
         self.turn_count_text_rect = pygame.Rect(section.left, section.top, section.width, floor(section.height*(3/10)))
         self.turn_count_rect = pygame.Rect(section.left, section.top+floor(section.height*(3/10)), section.width, floor(section.height*(7/10)))
+
+        # Makes Rect for the three dot 'more' button
+        section = pygame.Rect(floor(self.win_rect.width*(2/3)), floor(self.win_rect.height*(8/10)),
+                        floor(self.win_rect.width*(1/3)), floor(self.win_rect.height*(2/10)))
+        self.more_button_rect = self.more_button.get_rect(center=section.center)
 
     def create_game_history_layout(self):
         """Creates Rects for the game history screen"""
@@ -545,7 +568,7 @@ class TTTFunc:
                 return
 
         # check if the three dots 'more' button was clicked
-        if self.visual.more_button_rect.collidepoint(pos):
+        if self.visual.layouts.more_button_rect.collidepoint(pos):
             self.visual.draw_additional_options_screen()
             self.cur_screen = ADDITIONAL_OPTIONS_SCREEN
 
